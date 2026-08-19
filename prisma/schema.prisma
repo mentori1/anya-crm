@@ -1,0 +1,415 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Client {
+  id             Int       @id @default(autoincrement())
+  fullName       String
+  phone          String?
+  phoneNormalized String?   @unique
+  telegram       String?
+  telegramNormalized String? @unique
+  telegramUserId String?   @unique
+  telegramChatId String?
+  telegramAvatarFileId String?
+  avatarStorageKey String?
+  avatarMimeType String?
+  avatarUpdatedAt DateTime?
+  email          String?
+  emailNormalized String?   @unique
+  source         String?
+  status         String    @default("new")
+  version        Int       @default(1)
+  lastActivityAt DateTime?
+  nextContactAt  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  enrollments     Enrollment[]
+  goals           Goal[]
+  weeklyPlans     WeeklyPlan[]
+  dailyReports    DailyReport[]
+  weeklyReports   WeeklyReport[]
+  feedback        Feedback[]
+  materialProgress MaterialProgress[]
+  events          Event[]
+  attendances     Attendance[]
+  payments        Payment[]
+  attentionItems  AttentionItem[]
+  privateNotes    PrivateNote[]
+  notifications   Notification[]
+  portalAccess    ClientPortalAccess?
+
+  @@index([status])
+  @@index([fullName])
+  @@index([phone])
+  @@index([telegram])
+}
+
+model ClientPortalAccess {
+  id             Int       @id @default(autoincrement())
+  clientId       Int       @unique
+  publicId       String    @unique
+  pinHash        String
+  isActive       Boolean   @default(true)
+  sessionVersion Int       @default(1)
+  failedLoginCount Int      @default(0)
+  failedLoginWindowStartedAt DateTime?
+  lockedUntil    DateTime?
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([isActive])
+}
+
+model Program {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  status      String   @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  flows       Flow[]
+  enrollments Enrollment[]
+  materials   Material[]
+}
+
+model Flow {
+  id        Int       @id @default(autoincrement())
+  title     String
+  status    String    @default("draft")
+  startDate DateTime?
+  endDate   DateTime?
+  programId Int?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  program     Program?     @relation(fields: [programId], references: [id], onDelete: SetNull)
+  enrollments Enrollment[]
+  events      Event[]
+
+  @@index([status])
+  @@index([programId])
+}
+
+model Enrollment {
+  id        Int       @id @default(autoincrement())
+  clientId  Int
+  programId Int?
+  flowId    Int?
+  status    String    @default("active")
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  client  Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  program Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
+  flow    Flow?    @relation(fields: [flowId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([programId])
+  @@index([flowId])
+  @@index([status])
+}
+
+model Goal {
+  id           Int       @id @default(autoincrement())
+  clientId     Int
+  title        String
+  startValue   Float?
+  targetValue  Float?
+  currentValue Float?
+  unit         String?
+  movement     String    @default("on_track")
+  status       String    @default("active")
+  deadline     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([status])
+  @@index([movement])
+}
+
+model WeeklyPlan {
+  id        Int      @id @default(autoincrement())
+  clientId  Int
+  weekStart DateTime
+  weekEnd   DateTime
+  focus     String?
+  status    String   @default("draft")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tasks  PlanTask[]
+
+  @@unique([clientId, weekStart])
+  @@index([clientId])
+  @@index([weekStart])
+}
+
+model PlanTask {
+  id        Int       @id @default(autoincrement())
+  planId    Int
+  title     String
+  dueAt     DateTime?
+  status    String    @default("todo")
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  plan WeeklyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@index([status])
+}
+
+model DailyReport {
+  id         Int      @id @default(autoincrement())
+  clientId   Int
+  reportDate DateTime
+  result     String?
+  actions    String?
+  blockers   String?
+  nextStep   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, reportDate])
+  @@index([reportDate])
+}
+
+model WeeklyReport {
+  id          Int      @id @default(autoincrement())
+  clientId    Int
+  weekStart   DateTime
+  summary     String?
+  revenue     Float?
+  leads       Int?
+  sales       Int?
+  wins        String?
+  blockers    String?
+  nextFocus   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, weekStart])
+  @@index([weekStart])
+}
+
+model Feedback {
+  id        Int      @id @default(autoincrement())
+  clientId  Int
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model Material {
+  id          Int      @id @default(autoincrement())
+  programId   Int?
+  title       String
+  description String?
+  kind        String    @default("lesson")
+  url         String?
+  sortOrder   Int       @default(0)
+  isPublished Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  program Program?           @relation(fields: [programId], references: [id], onDelete: SetNull)
+  progress MaterialProgress[]
+
+  @@index([programId])
+  @@index([isPublished])
+}
+
+model MaterialProgress {
+  id          Int       @id @default(autoincrement())
+  clientId    Int
+  materialId  Int
+  status      String    @default("not_started")
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, materialId])
+  @@index([materialId])
+}
+
+model Event {
+  id              Int       @id @default(autoincrement())
+  title           String
+  kind            String    @default("live")
+  startsAt        DateTime
+  durationMinutes Int       @default(60)
+  link            String?
+  status          String    @default("planned")
+  flowId          Int?
+  clientId        Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  flow          Flow?          @relation(fields: [flowId], references: [id], onDelete: SetNull)
+  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  attendances   Attendance[]
+  notifications Notification[]
+
+  @@index([startsAt])
+  @@index([flowId])
+  @@index([clientId])
+}
+
+model Attendance {
+  id        Int       @id @default(autoincrement())
+  eventId   Int
+  clientId  Int
+  status    String    @default("invited")
+  joinedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, clientId])
+  @@index([clientId])
+}
+
+model Payment {
+  id        Int       @id @default(autoincrement())
+  clientId  Int
+  title     String
+  amountRub Int
+  dueDate   DateTime?
+  paidAt    DateTime?
+  status    String    @default("planned")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model AttentionItem {
+  id         Int       @id @default(autoincrement())
+  clientId   Int?
+  title      String
+  kind       String    @default("manual")
+  priority   String    @default("normal")
+  dueAt      DateTime?
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  client Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([resolvedAt])
+  @@index([dueAt])
+}
+
+model PrivateNote {
+  id        Int      @id @default(autoincrement())
+  clientId  Int
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model NotificationTemplate {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  title     String
+  body      String
+  channel   String   @default("telegram")
+  isActive  Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id          Int       @id @default(autoincrement())
+  clientId    Int?
+  eventId     Int?
+  kind        String
+  body        String
+  channel     String    @default("telegram")
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  status      String    @default("draft")
+  deliveryKey String?   @unique
+  attempts    Int       @default(0)
+  lastError   String?
+  claimedAt   DateTime?
+  externalMessageId String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  client Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  event  Event?  @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([eventId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model MutationReceipt {
+  id           Int       @id @default(autoincrement())
+  action       String
+  operationKey String
+  payloadHash  String
+  entityType   String
+  entityId     String?
+  createdAt    DateTime  @default(now())
+  completedAt  DateTime?
+
+  @@unique([action, operationKey])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  entityType String
+  entityId   String
+  action     String
+  payload    String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

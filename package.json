@@ -1,0 +1,51 @@
+{
+  "name": "anya-crm",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "node scripts/local/build-safe.mjs",
+    "start": "next start -p 3002",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "db:backup": "tsx scripts/ops/backup-db.ts",
+    "db:verify-backup": "tsx scripts/ops/verify-backup.ts",
+    "db:concurrency-check": "tsx scripts/ops/concurrency-check.ts",
+    "local:setup": "tsx scripts/local/setup-db.ts",
+    "local:prepare": "LOCAL_KEEP_DATA=1 tsx scripts/local/setup-db.ts",
+    "local:fill-demo": "tsx scripts/local/fill-demo.ts",
+    "local:crm": "tsx scripts/local/run-crm.ts",
+    "telegram:preview": "tsx scripts/telegram/outbox.ts",
+    "telegram:test-outbox": "tsx scripts/telegram/test-outbox.ts",
+    "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.9.1",
+    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/client": "^7.9.1",
+    "better-sqlite3": "^13.0.1",
+    "next": "^16.3.0",
+    "pg": "^8.21.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^20",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
+    "eslint": "^9",
+    "eslint-config-next": "^16.3.0",
+    "playwright": "^1.60.0",
+    "prisma": "^7.9.1",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.22.4",
+    "typescript": "^5"
+  }
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { SyncRefresh } from "@/components/SyncRefresh";
+import { logout } from "@/lib/auth-actions";
 
 const navigation = [
   { href: "/", label: "Главная", mark: "⌂" },
@@ -48,7 +49,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="eyebrow">Пространство Ани</span>
             <strong>Управление сопровождением</strong>
           </div>
-          <span className="owner-avatar">А</span>
+          <div className="workspace-account">
+            <span className="owner-avatar" aria-hidden="true">А</span>
+            <form action={logout}>
+              <button className="workspace-logout" type="submit">Выйти</button>
+            </form>
+          </div>
         </header>
         <main className="workspace-content">{children}</main>
       </div>

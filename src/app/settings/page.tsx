@@ -7,6 +7,7 @@ import { logout } from "@/lib/auth-actions";
 import { prisma } from "@/lib/db";
 import { refreshSystemStatus } from "@/lib/settings-actions";
 import { formatDateTime } from "@/lib/format";
+import { telegramLiveDeliveryAllowed } from "@/lib/runtime-capabilities";
 import { telegramIsConfigured } from "@/lib/telegram-api";
 
 export const dynamic = "force-dynamic";
@@ -95,11 +96,12 @@ export default async function SettingsPage() {
     prisma.notification.groupBy({ by: ["status"], _count: { _all: true } }),
     prisma.mutationReceipt.count(),
   ]);
-  const backups = inspectBackups();
   const database = inspectLocalDatabase();
+  const backups = database.local ? inspectBackups() : [];
   const isLocalBypass = process.env.LOCAL_AUTH_BYPASS === "1";
   const canLogout = Boolean(process.env.APP_PASSWORD) && !isLocalBypass;
   const telegramConfigured = telegramIsConfigured();
+  const liveDeliveryAllowed = telegramLiveDeliveryAllowed();
   const outbox = Object.fromEntries(notificationGroups.map((row) => [row.status, row._count._all]));
 
   return (
@@ -108,7 +110,7 @@ export default async function SettingsPage() {
         <div>
           <p className="eyebrow">Система</p>
           <h1>Настройки</h1>
-          <p>Фактическое состояние локальной CRM, базы и резервных копий.</p>
+          <p>{database.local ? "Фактическое состояние локальной CRM, базы и резервных копий." : "Фактическое состояние CRM, внешней базы и подключённых сервисов."}</p>
         </div>
         <div className="form-actions">
           <form action={refreshSystemStatus}><button className="button-secondary">Обновить проверку</button></form>
@@ -149,7 +151,7 @@ export default async function SettingsPage() {
       <section className="panel compact-panel">
         <div className="section-heading">
           <div><span className="section-kicker">Автоматизация</span><h2>Telegram и очередь уведомлений</h2></div>
-          <span className={`status-badge ${telegramConfigured ? "status-active" : "status-paused"}`}>{telegramConfigured ? "Бот подключён" : "Бот не подключён"}</span>
+          <span className={`status-badge ${liveDeliveryAllowed ? "status-active" : "status-paused"}`}>{liveDeliveryAllowed ? "Отправка разрешена" : telegramConfigured ? "Автоотправка выключена" : "Бот не подключён"}</span>
         </div>
         <div className="client-numbers">
           <div><span>Клиенты с Telegram</span><strong>{linkedTelegram}</strong></div>
@@ -158,11 +160,12 @@ export default async function SettingsPage() {
           <div><span>Отправлено</span><strong>{outbox.sent ?? 0}</strong></div>
           <div><span>Ошибка</span><strong>{outbox.error ?? 0}</strong></div>
           <div><span>Нужна проверка</span><strong>{outbox.uncertain ?? 0}</strong></div>
+          <div><span>Обработчик</span><strong>{liveDeliveryAllowed ? "Запускается отдельно" : "Не включён"}</strong></div>
         </div>
-        <p className="stage-note">Очередь читает события и напоминания из CRM. Одно уведомление может забрать только один обработчик. Сомнительная сетевая отправка не повторяется автоматически, а попадает на ручную проверку.</p>
+        <p className="stage-note">{liveDeliveryAllowed ? "CRM ставит уведомления в очередь, а реальная отправка разрешена. Обработчик запускается отдельно: эта страница не подтверждает, что он сейчас работает. Сомнительная сетевая отправка попадает на ручную проверку." : "CRM сохраняет уведомления в очереди, но автоматическая доставка сейчас не работает: отдельный обработчик не включён. Ничего не отправляется в Telegram само по себе."}</p>
       </section>
 
-      <section className="panel list-panel">
+      {database.local ? <section className="panel list-panel">
         <div className="section-heading">
           <div><span className="section-kicker">Хранение</span><h2>Резервные копии</h2></div>
           <span className="count-badge">{backups.length}</span>
@@ -183,7 +186,15 @@ export default async function SettingsPage() {
             <span>◌</span><div><strong>Копий пока нет</strong><p>Страница ничего не создаёт и показывает только реальные файлы из папки .backups.</p></div>
           </div>
         )}
-      </section>
+      </section> : <section className="panel list-panel">
+        <div className="section-heading">
+          <div><span className="section-kicker">Хранение</span><h2>Резервные копии базы</h2></div>
+          <span className="status-badge status-paused">Внешний сервис</span>
+        </div>
+        <div className="empty-inline">
+          <span>↗</span><div><strong>Копии хранятся не в CRM</strong><p>Для внешней PostgreSQL резервное копирование и восстановление настраиваются у поставщика базы. Эта страница не создаёт копии и не подтверждает их наличие.</p></div>
+        </div>
+      </section>}
 
       <Link href="/more" className="back-link">← Вернуться к инструментам</Link>
     </div>

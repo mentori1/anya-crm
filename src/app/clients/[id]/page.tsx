@@ -7,6 +7,7 @@ import { syncTelegramAvatar, uploadClientAvatar } from "@/lib/avatar-actions";
 import { configureClientPortal, disableClientPortal } from "@/lib/client-portal-actions";
 import { prisma } from "@/lib/db";
 import { clientStatusLabels, formatDate, inputDate } from "@/lib/format";
+import { filesystemAvatarUploadsAvailable } from "@/lib/runtime-capabilities";
 import { telegramIsConfigured } from "@/lib/telegram-api";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,7 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
     ? `/api/clients/${client.id}/avatar?v=${client.avatarUpdatedAt?.getTime() ?? 0}`
     : null;
   const telegramReady = telegramIsConfigured();
+  const avatarUploadAvailable = filesystemAvatarUploadsAvailable();
   const goalSubmissionKey = randomUUID();
   const eventSubmissionKey = randomUUID();
   const noteSubmissionKey = randomUUID();
@@ -73,9 +75,9 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
         <aside className="detail-side">
           <section className="panel compact-panel avatar-panel">
             <div className="section-heading"><div><span className="section-kicker">Фотография</span><h2>Аватар клиента</h2></div><Avatar name={client.fullName} src={photoSrc} size={48} /></div>
-            <form action={uploadClientAvatar} className="avatar-upload-form"><input type="hidden" name="clientId" value={client.id} /><input type="file" name="avatar" accept="image/jpeg,image/png,image/webp" required /><button className="button-secondary">Загрузить фото</button></form>
-            <div className="avatar-sync-row"><span>{client.telegramAvatarFileId ? "Фото Telegram найдено" : client.telegramUserId ? "Можно запросить фото Telegram" : "Telegram ID появится после подключения бота"}</span><form action={syncTelegramAvatar}><input type="hidden" name="clientId" value={client.id} /><button className="text-link" disabled={!telegramReady || !client.telegramUserId}>Подтянуть</button></form></div>
-            <p className="form-hint">Приоритет: фото, загруженное здесь или клиентом → фото Telegram → инициалы.</p>
+            {avatarUploadAvailable ? <form action={uploadClientAvatar} className="avatar-upload-form"><input type="hidden" name="clientId" value={client.id} /><input type="file" name="avatar" accept="image/jpeg,image/png,image/webp" required /><button className="button-secondary">Загрузить фото</button></form> : <p className="form-hint">Загрузка файла появится после подключения постоянного хранилища изображений.</p>}
+            <div className="avatar-sync-row"><span>{client.telegramAvatarFileId ? telegramReady ? "Фото Telegram найдено" : "Фото сохранено, но бот не подключён" : client.telegramUserId ? telegramReady ? "Можно запросить фото Telegram" : "Подключи Telegram-бота для синхронизации" : "Telegram ID появится после подключения бота"}</span><form action={syncTelegramAvatar}><input type="hidden" name="clientId" value={client.id} /><button className="text-link" disabled={!telegramReady || !client.telegramUserId}>Подтянуть</button></form></div>
+            <p className="form-hint">{avatarUploadAvailable ? "Приоритет: фото, загруженное здесь или клиентом → фото Telegram → инициалы." : "Сейчас доступны фото Telegram и инициалы."}</p>
           </section>
 
           <section className="panel compact-panel">

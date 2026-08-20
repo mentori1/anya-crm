@@ -9,7 +9,8 @@ import { redirect } from "next/navigation";
 import { getClientPortalSession } from "@/lib/client-auth";
 import { prisma, withTransientDbRetry } from "@/lib/db";
 import { requireOwner } from "@/lib/owner-auth";
-import { telegramApi } from "@/lib/telegram-api";
+import { filesystemAvatarUploadsAvailable } from "@/lib/runtime-capabilities";
+import { telegramApi, telegramIsConfigured } from "@/lib/telegram-api";
 
 function imageKind(bytes: Uint8Array) {
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return { ext: "jpg", mime: "image/jpeg" };
@@ -46,6 +47,11 @@ async function removeManagedAvatar(path: string | null) {
 }
 
 async function saveAvatar(clientId: number, file: File, actor: "owner" | "client") {
+  if (!filesystemAvatarUploadsAvailable()) {
+    throw new Error(
+      "Загрузка фотографий в облачной версии временно выключена до подключения постоянного хранилища.",
+    );
+  }
   if (!file.size || file.size > 5 * 1024 * 1024) throw new Error("Фотография должна быть не больше 5 МБ");
   const bytes = new Uint8Array(await file.arrayBuffer());
   const kind = imageKind(bytes);
@@ -144,6 +150,7 @@ export async function uploadOwnAvatar(formData: FormData) {
 
 export async function syncTelegramAvatar(formData: FormData) {
   await requireOwner();
+  if (!telegramIsConfigured()) return;
   const clientId = Number(formData.get("clientId"));
   if (!Number.isInteger(clientId)) return;
   const client = await prisma.client.findUnique({ where: { id: clientId }, select: { telegramUserId: true, telegramAvatarFileId: true } });

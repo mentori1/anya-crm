@@ -4,6 +4,7 @@ import { uploadOwnAvatar } from "@/lib/avatar-actions";
 import { cabinetAvatarUrl, requireCabinetClient, visibleEventsWhere, visibleMaterialsWhere } from "@/lib/cabinet-data";
 import { prisma } from "@/lib/db";
 import { formatMoscowDateTime, moscowDayStart, moscowWeekBounds } from "@/lib/moscow-time";
+import { filesystemAvatarUploadsAvailable } from "@/lib/runtime-capabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,7 @@ export default async function ClientCabinetPage() {
   const nextEventUrl = usableUrl(nextEvent?.link ?? null);
   const doneTasks = plan?.tasks.filter((task) => task.status === "done").length ?? 0;
   const materialDone = materials.filter((material) => material.progress[0]?.status === "completed").length;
+  const avatarUploadAvailable = filesystemAvatarUploadsAvailable();
 
   return (
     <div className="portal-page-stack">
@@ -63,13 +65,15 @@ export default async function ClientCabinetPage() {
           <h1>{firstName}, всё важное здесь</h1>
           <p>Смотри ближайший шаг, отмечай сделанное и фиксируй результат.</p>
         </div>
-        <details className="portal-avatar-upload">
-          <summary>Изменить фото</summary>
-          <form action={uploadOwnAvatar}>
-            <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp" required />
-            <button className="button-secondary">Загрузить</button>
-          </form>
-        </details>
+        {avatarUploadAvailable ? (
+          <details className="portal-avatar-upload">
+            <summary>Изменить фото</summary>
+            <form action={uploadOwnAvatar}>
+              <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp" required />
+              <button className="button-secondary">Загрузить</button>
+            </form>
+          </details>
+        ) : null}
       </section>
 
       <div className="portal-overview-grid">
